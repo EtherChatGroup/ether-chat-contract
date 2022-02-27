@@ -59,15 +59,15 @@ contract LPFactory is Ownable, ReentrancyGuard {
 
     ISwapV2 public router = ISwapV2(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
 
-    uint256 public baseFund = 10**17;
+    uint256 public baseFund = 10**16;
 
-    uint256 public createLPTimes = 1;
+    uint256 public createLPTimes = 10;
 
     mapping(address => Chatroom) public chatroomStatus;
 
     mapping(address => DepositOrder[]) public chatroomFund;
 
-    mapping(address => mapping(address => bool)) claimed;
+    mapping(address => mapping(address => bool)) public claimed;
 
     function setBaseFund(uint256 _baseFund) external onlyOwner {
         baseFund = _baseFund;
@@ -139,15 +139,7 @@ contract LPFactory is Ownable, ReentrancyGuard {
         emit CreateLP(_chatroom, msg.sender);
     }
 
-    function claim(address _chatroom) external nonReentrant {
-        require(
-            chatroomStatus[_chatroom].status == 1,
-            "Ether Chat : LP must be created"
-        );
-        require(
-            !claimed[_chatroom][msg.sender],
-            "Ether Chat : The account has been claimed"
-        );
+    function getClaimAmount(address _chatroom) public view returns (uint256) {
         uint256 amount;
         for (uint256 i = 0; i < chatroomFund[_chatroom].length; i++) {
             if (chatroomFund[_chatroom][i].owner == msg.sender) {
@@ -162,6 +154,19 @@ contract LPFactory is Ownable, ReentrancyGuard {
         if (contractLeftAmount < claimAmount) {
             claimAmount = contractLeftAmount;
         }
+        return claimAmount;
+    }
+
+    function claim(address _chatroom) external nonReentrant {
+        require(
+            chatroomStatus[_chatroom].status == 1,
+            "Ether Chat : LP must be created"
+        );
+        require(
+            !claimed[_chatroom][msg.sender],
+            "Ether Chat : The account has been claimed"
+        );
+        uint256 claimAmount = getClaimAmount(_chatroom);
         chatroomStatus[_chatroom].token.transfer(msg.sender, claimAmount);
         claimed[_chatroom][msg.sender] = true;
         emit Claim(_chatroom, msg.sender, claimAmount);
